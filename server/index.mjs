@@ -191,6 +191,18 @@ function sanitizeUser(user) {
   };
 }
 
+function sanitizeDevice(device) {
+  return {
+    id: device.id,
+    userId: device.userId,
+    platform: device.platform,
+    deviceName: device.deviceName,
+    pushToken: device.pushToken,
+    createdAt: device.createdAt,
+    updatedAt: device.updatedAt,
+  };
+}
+
 function normalizeTimeString(input, fallback) {
   const value = String(input || fallback).replace(".", ":");
   const match = value.match(/^(\d{1,2}):(\d{2})$/);
@@ -716,6 +728,42 @@ const server = createServer(async (req, res) => {
       writeDb(db);
 
       sendJson(res, 201, { device });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/devices") {
+      const auth = requireAdmin(db, req, res);
+      if (!auth) {
+        return;
+      }
+
+      sendJson(res, 200, {
+        devices: db.devices.map(sanitizeDevice),
+      });
+      return;
+    }
+
+    const deleteDeviceMatch =
+      req.method === "POST" && url.pathname.match(/^\/api\/devices\/([^/]+)\/delete$/);
+
+    if (deleteDeviceMatch) {
+      const auth = requireAdmin(db, req, res);
+      if (!auth) {
+        return;
+      }
+
+      const deviceId = deleteDeviceMatch[1];
+      const deviceIndex = db.devices.findIndex((entry) => entry.id === deviceId);
+      if (deviceIndex === -1) {
+        sendJson(res, 404, { error: "Device not found" });
+        return;
+      }
+
+      const [removedDevice] = db.devices.splice(deviceIndex, 1);
+      logAudit(db, "devices.delete", auth.user.id, { deviceId });
+      writeDb(db);
+
+      sendJson(res, 200, { device: sanitizeDevice(removedDevice) });
       return;
     }
 

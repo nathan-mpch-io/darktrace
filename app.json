@@ -36,6 +36,12 @@
           "sounds": []
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2a9c1683-e754-44dc-b9c2-eb2cfff7d5f8"
+      }
+    },
+    "owner": "dotman20"
   }
 }

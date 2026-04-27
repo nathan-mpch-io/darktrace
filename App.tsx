@@ -19,7 +19,7 @@ import {
 } from "react-native";
 import { seedUsers } from "./src/data/mock";
 import { palette } from "./src/theme";
-import { AppUser, OnCallSchedule, ScheduleDayKey } from "./src/types";
+import { AppUser, OnCallSchedule, RegisteredDevice, ScheduleDayKey } from "./src/types";
 
 const WEEK_DAYS: Array<{ key: ScheduleDayKey; label: string }> = [
   { key: "monday", label: "Monday" },
@@ -44,7 +44,14 @@ export default function App() {
   const alarmSoundRef = useRef<Audio.Sound | null>(null);
   const defaultApiUrl =
     (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) || "http://127.0.0.1:4000";
+  const defaultProjectId =
+    ((Constants.expoConfig?.extra as { eas?: { projectId?: string }; projectId?: string } | undefined)?.eas
+      ?.projectId ||
+      (Constants.expoConfig?.extra as { eas?: { projectId?: string }; projectId?: string } | undefined)?.projectId ||
+      Constants.easConfig?.projectId ||
+      "");
   const [apiBaseUrl, setApiBaseUrl] = useState(defaultApiUrl);
+  const [expoProjectId, setExpoProjectId] = useState(defaultProjectId);
   const [authToken, setAuthToken] = useState("");
   const [users, setUsers] = useState<AppUser[]>(seedUsers);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
@@ -77,6 +84,7 @@ export default function App() {
   const [backendError, setBackendError] = useState("");
   const [permissionSummary, setPermissionSummary] = useState("Checking notification access...");
   const [pushSummary, setPushSummary] = useState("Remote push registration not started yet.");
+  const [registeredDevices, setRegisteredDevices] = useState<RegisteredDevice[]>([]);
 
   useEffect(() => {
     void prepareNotifications();
@@ -95,6 +103,12 @@ export default function App() {
       responseSubscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (showAdminPanel && currentUser?.role === "admin") {
+      void loadDevices();
+    }
+  }, [showAdminPanel, currentUser]);
 
   useEffect(() => {
     if (!activeAlarm) {
@@ -157,15 +171,6 @@ export default function App() {
     setPermissionSummary("Notifications are enabled. On iPhone, Critical Alerts still need Apple entitlement approval.");
   }
 
-  function resolveExpoProjectId() {
-    const extras = (Constants.expoConfig?.extra || {}) as {
-      eas?: { projectId?: string };
-      projectId?: string;
-    };
-
-    return Constants.easConfig?.projectId || extras.eas?.projectId || extras.projectId || "";
-  }
-
   function handleIncomingNotification(notification: Notifications.Notification) {
     const notificationData = notification.request.content.data || {};
     const targetDisplayName =
@@ -198,10 +203,10 @@ export default function App() {
     setSelectedScheduleUser(null);
     setAlertAllMode(false);
     setAuthToken("");
-    setLoginUsername("admin");
-    setLoginPassword("pass123");
-    setBackendError("");
-    setPushSummary("Remote push registration not started yet.");
+      setLoginUsername("admin");
+      setLoginPassword("pass123");
+      setBackendError("");
+      setPushSummary("Remote push registration not started yet.");
   }
 
   function handleCreateUser() {
@@ -263,8 +268,8 @@ export default function App() {
     setPageMessage("");
   }
 
-  const standardUsers = users.filter((user) => user.role !== "admin");
-  const onCallUsers = standardUsers.filter(isUserOnCall);
+  const nonAdminUsers = users.filter((user) => user.role !== "admin");
+  const allPagingUsers = users;
 
   async function apiRequest(path: string, options: RequestInit = {}, tokenOverride?: string) {
     const response = await fetch(`${apiBaseUrl}${path}`, {
@@ -359,10 +364,13 @@ export default function App() {
         return;
       }
 
-      const projectId = resolveExpoProjectId();
-      const expoPushToken = projectId
-        ? await Notifications.getExpoPushTokenAsync({ projectId })
-        : await Notifications.getExpoPushTokenAsync();
+      const projectId = expoProjectId.trim();
+      if (!projectId) {
+        setPushSummary("Remote push registration failed. Add an Expo projectId before testing remote push in Expo Go.");
+        return;
+      }
+
+      const expoPushToken = await Notifications.getExpoPushTokenAsync({ projectId });
 
       await apiRequest(
         "/api/devices/register",
@@ -380,9 +388,7 @@ export default function App() {
       setPushSummary(`Remote push ready on this ${Platform.OS} device.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown push registration error";
-      setPushSummary(
-        `Remote push registration failed. ${message.includes("projectId") ? "Add an Expo projectId before testing remote push in Expo Go." : message}`,
-      );
+      setPushSummary(`Remote push registration failed. ${message}`);
     }
   }
 
@@ -405,6 +411,15 @@ export default function App() {
       );
     } catch (error) {
       setBackendError(error instanceof Error ? error.message : "Unable to load users");
+    }
+  }
+
+  async function loadDevices() {
+    try {
+      const data = await apiRequest("/api/devices");
+      setRegisteredDevices(data.devices);
+    } catch (error) {
+      setBackendError(error instanceof Error ? error.message : "Unable to load devices");
     }
   }
 
@@ -449,7 +464,7 @@ export default function App() {
 
       if (alertAllMode) {
         await Promise.all(
-          standardUsers.map((user) =>
+          allPagingUsers.map((user) =>
             apiRequest("/api/pages/send", {
               method: "POST",
               body: JSON.stringify({
@@ -472,7 +487,7 @@ export default function App() {
       Alert.alert(
         "Pager sent",
         alertAllMode
-          ? `Broadcast pager request sent to ${standardUsers.length} users.`
+          ? `Broadcast pager request sent to ${allPagingUsers.length} users.`
           : `Pager request sent to ${selectedRecipient?.displayName}.`,
       );
     } catch (error) {
@@ -610,6 +625,21 @@ export default function App() {
     }
   }
 
+  async function deleteRegisteredDevice(device: RegisteredDevice) {
+    try {
+      setBackendError("");
+      await apiRequest(`/api/devices/${device.id}/delete`, {
+        method: "POST",
+      });
+      await loadDevices();
+      Alert.alert("Device removed", `${device.deviceName} has been detached.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to remove device";
+      setBackendError(message);
+      Alert.alert("Device removal failed", message);
+    }
+  }
+
   async function startAlarmSound() {
     await Audio.setAudioModeAsync({
       playsInSilentModeIOS: true,
@@ -675,6 +705,19 @@ export default function App() {
             </View>
 
             <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>expo_project_id</Text>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={setExpoProjectId}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                placeholderTextColor={palette.muted}
+                style={styles.input}
+                value={expoProjectId}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
               <Text style={styles.inputLabel}>username</Text>
               <TextInput
                 autoCapitalize="none"
@@ -723,6 +766,7 @@ export default function App() {
               <Text style={styles.note}>username=admin</Text>
               <Text style={styles.note}>password=pass123</Text>
               <Text style={styles.note}>If testing on a phone, set `backend_url` to your computer's LAN IP.</Text>
+              <Text style={styles.note}>Remote push in Expo Go also needs a valid `expo_project_id`.</Text>
             </View>
           </View>
         </View>
@@ -877,6 +921,7 @@ export default function App() {
               Create login credentials here, then share the username and password with each user.
             </Text>
             <Text style={styles.note}>Press `EDIT SCHEDULE` for each user.</Text>
+            <Text style={styles.note}>Use `REMOVE DEVICE` if the wrong phone is getting somebody else's alerts.</Text>
             {backendError ? <Text style={styles.errorText}>{backendError}</Text> : null}
 
             <View style={styles.formGroup}>
@@ -1035,6 +1080,38 @@ export default function App() {
                 </View>
               ))}
             </View>
+            <View style={styles.userList}>
+              <Text style={styles.sectionTitle}>{">"} Registered devices</Text>
+              {registeredDevices.map((device) => {
+                const linkedUser = users.find((user) => user.id === device.userId);
+                return (
+                  <View key={device.id} style={styles.userRow}>
+                    <View style={styles.responderCopy}>
+                      <Text style={styles.responderName}>{device.deviceName}</Text>
+                      <Text style={styles.responderMeta}>
+                        user={linkedUser?.displayName || device.userId} platform={device.platform}
+                      </Text>
+                      <Text style={styles.responderMeta}>
+                        token={device.pushToken.slice(0, 24)}...
+                      </Text>
+                      <Pressable
+                        onPress={() => {
+                          void deleteRegisteredDevice(device);
+                        }}
+                        style={({ pressed }) => [
+                          styles.button,
+                          styles.buttonOutline,
+                          styles.smallButton,
+                          pressed && styles.buttonPressed,
+                        ]}
+                      >
+                        <Text style={styles.buttonOutlineText}>REMOVE DEVICE</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           </ScrollView>
         </View>
       </SafeAreaView>
@@ -1175,7 +1252,7 @@ export default function App() {
             >
               <Text style={styles.alertAllButtonText}>ALERT ALL</Text>
             </Pressable>
-            {standardUsers.map((user) => (
+            {nonAdminUsers.map((user) => (
               <Pressable
                 key={user.id}
                 disabled={!isUserOnCall(user)}

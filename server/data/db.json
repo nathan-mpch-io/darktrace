@@ -505,10 +505,132 @@
       "token": "0a13affb0f982d8adcc2328479eb1a1043f72637a28a9f4a",
       "userId": "usr_admin",
       "createdAt": "2026-04-27T16:16:29.089Z"
+    },
+    {
+      "id": "session_96efa30ee5be",
+      "token": "c0395b0827ee6c0312ed6246deffa9de7daf9a8f689cbd74",
+      "userId": "usr_admin",
+      "createdAt": "2026-04-27T16:53:20.060Z"
+    },
+    {
+      "id": "session_865de148ff43",
+      "token": "28bcf6e514f220e2d1b0b393982f7e211bf9ef51f0693775",
+      "userId": "usr_admin",
+      "createdAt": "2026-04-27T16:54:09.432Z"
     }
   ],
   "devices": [],
   "pages": [
+    {
+      "id": "page_f1cd907f2ff7",
+      "createdByUserId": "usr_677989111da0",
+      "targetUserId": "usr_96662528df57",
+      "message": "Alerting all users for urgent IT response.",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:35.451Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_4278db39b3a5",
+      "createdByUserId": "usr_677989111da0",
+      "targetUserId": "usr_bbd30f979add",
+      "message": "Alerting all users for urgent IT response.",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:35.450Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_08db4643e6a2",
+      "createdByUserId": "usr_677989111da0",
+      "targetUserId": "usr_nick",
+      "message": "Alerting all users for urgent IT response.",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:35.448Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_e51249b5584a",
+      "createdByUserId": "usr_677989111da0",
+      "targetUserId": "usr_milo",
+      "message": "Alerting all users for urgent IT response.",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:35.445Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_8ae2e448aaac",
+      "createdByUserId": "usr_677989111da0",
+      "targetUserId": "usr_jacob",
+      "message": "Alerting all users for urgent IT response.",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:35.437Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_08743435bb73",
+      "createdByUserId": "usr_admin",
+      "targetUserId": "usr_586b2fc9883c",
+      "message": "test",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:18.506Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_e2fc5e22cad2",
+      "createdByUserId": "usr_admin",
+      "targetUserId": "usr_bbd30f979add",
+      "message": "test",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:18.504Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_2614100bbf79",
+      "createdByUserId": "usr_admin",
+      "targetUserId": "usr_jacob",
+      "message": "test",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:18.502Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_094d7ce0f8a4",
+      "createdByUserId": "usr_admin",
+      "targetUserId": "usr_milo",
+      "message": "test",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:18.501Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_ef7dd04b4c2e",
+      "createdByUserId": "usr_admin",
+      "targetUserId": "usr_nick",
+      "message": "test",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:18.499Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
+    {
+      "id": "page_ffecf7afea82",
+      "createdByUserId": "usr_admin",
+      "targetUserId": "usr_96662528df57",
+      "message": "test",
+      "status": "sent",
+      "createdAt": "2026-04-27T16:54:18.494Z",
+      "acknowledgedAt": null,
+      "deliveryAttempts": []
+    },
     {
       "id": "page_9b3d8d0ccbf4",
       "createdByUserId": "usr_677989111da0",
@@ -671,6 +793,130 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "audit_54639e78d400",
+      "event": "pages.send",
+      "actorUserId": "usr_677989111da0",
+      "createdAt": "2026-04-27T16:54:35.451Z",
+      "details": {
+        "pageId": "page_f1cd907f2ff7",
+        "targetUserId": "usr_96662528df57"
+      }
+    },
+    {
+      "id": "audit_0f2c80b61b37",
+      "event": "pages.send",
+      "actorUserId": "usr_677989111da0",
+      "createdAt": "2026-04-27T16:54:35.450Z",
+      "details": {
+        "pageId": "page_4278db39b3a5",
+        "targetUserId": "usr_bbd30f979add"
+      }
+    },
+    {
+      "id": "audit_ed208daad1d8",
+      "event": "pages.send",
+      "actorUserId": "usr_677989111da0",
+      "createdAt": "2026-04-27T16:54:35.448Z",
+      "details": {
+        "pageId": "page_08db4643e6a2",
+        "targetUserId": "usr_nick"
+      }
+    },
+    {
+      "id": "audit_9a981cc132f5",
+      "event": "pages.send",
+      "actorUserId": "usr_677989111da0",
+      "createdAt": "2026-04-27T16:54:35.445Z",
+      "details": {
+        "pageId": "page_e51249b5584a",
+        "targetUserId": "usr_milo"
+      }
+    },
+    {
+      "id": "audit_611bcfd828b4",
+      "event": "pages.send",
+      "actorUserId": "usr_677989111da0",
+      "createdAt": "2026-04-27T16:54:35.442Z",
+      "details": {
+        "pageId": "page_8ae2e448aaac",
+        "targetUserId": "usr_jacob"
+      }
+    },
+    {
+      "id": "audit_6c4e291bb0d9",
+      "event": "pages.send",
+      "actorUserId": "usr_admin",
+      "createdAt": "2026-04-27T16:54:18.506Z",
+      "details": {
+        "pageId": "page_08743435bb73",
+        "targetUserId": "usr_586b2fc9883c"
+      }
+    },
+    {
+      "id": "audit_c2e7adb9bacb",
+      "event": "pages.send",
+      "actorUserId": "usr_admin",
+      "createdAt": "2026-04-27T16:54:18.504Z",
+      "details": {
+        "pageId": "page_e2fc5e22cad2",
+        "targetUserId": "usr_bbd30f979add"
+      }
+    },
+    {
+      "id": "audit_d60660bf79e9",
+      "event": "pages.send",
+      "actorUserId": "usr_admin",
+      "createdAt": "2026-04-27T16:54:18.502Z",
+      "details": {
+        "pageId": "page_2614100bbf79",
+        "targetUserId": "usr_jacob"
+      }
+    },
+    {
+      "id": "audit_1527b730ee46",
+      "event": "pages.send",
+      "actorUserId": "usr_admin",
+      "createdAt": "2026-04-27T16:54:18.501Z",
+      "details": {
+        "pageId": "page_094d7ce0f8a4",
+        "targetUserId": "usr_milo"
+      }
+    },
+    {
+      "id": "audit_7763730b1fa4",
+      "event": "pages.send",
+      "actorUserId": "usr_admin",
+      "createdAt": "2026-04-27T16:54:18.499Z",
+      "details": {
+        "pageId": "page_ef7dd04b4c2e",
+        "targetUserId": "usr_nick"
+      }
+    },
+    {
+      "id": "audit_3f7f5e653b10",
+      "event": "pages.send",
+      "actorUserId": "usr_admin",
+      "createdAt": "2026-04-27T16:54:18.497Z",
+      "details": {
+        "pageId": "page_ffecf7afea82",
+        "targetUserId": "usr_96662528df57"
+      }
+    },
+    {
+      "id": "audit_0b57d169cf99",
+      "event": "auth.login",
+      "actorUserId": "usr_admin",
+      "createdAt": "2026-04-27T16:54:09.433Z",
+      "details": {}
+    },
+    {
+      "id": "audit_1821fcbcf937",
+      "event": "auth.login",
+      "actorUserId": "usr_admin",
+      "createdAt": "2026-04-27T16:53:20.062Z",
+      "details": {}
+    },
     {
       "id": "audit_6e3601bd5b32",
       "event": "users.create",

@@ -52,3 +52,13 @@ export type AppUser = {
   role: AppUserRole;
   onCallSchedule?: OnCallSchedule;
 };
+
+export type RegisteredDevice = {
+  id: string;
+  userId: string;
+  platform: "ios" | "android";
+  deviceName: string;
+  pushToken: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
