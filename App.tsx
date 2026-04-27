@@ -77,18 +77,20 @@ function getTimezoneContext(input?: string, date = new Date()) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZoneName: "short",
   }).formatToParts(date);
 
   const getPart = (type: string) => parts.find((part) => part.type === type)?.value || "";
   const weekday = getPart("weekday").toLowerCase() as ScheduleDayKey;
   const hour = Number(getPart("hour") || "0");
   const minute = Number(getPart("minute") || "0");
+  const zoneLabel = getPart("timeZoneName") || timeZone;
 
   return {
     timeZone,
     weekday,
     currentMinutes: hour * 60 + minute,
-    label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+    label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${zoneLabel}`,
   };
 }
 
@@ -153,6 +155,7 @@ export default function App() {
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [timeTick, setTimeTick] = useState(() => Date.now());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     void prepareNotifications();
@@ -177,6 +180,18 @@ export default function App() {
       void loadDevices();
     }
   }, [showAdminPanel, showDevicesPanel, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser || !authTokenRef.current) {
+      return;
+    }
+
+    const refreshTimer = setInterval(() => {
+      void refreshLiveData(true);
+    }, 20000);
+
+    return () => clearInterval(refreshTimer);
+  }, [currentUser]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -294,6 +309,10 @@ export default function App() {
 
   function handleCreateUser() {
     void createUserInBackend();
+  }
+
+  function handleRefresh() {
+    void refreshLiveData();
   }
 
   async function handlePreviewAlert() {
@@ -491,10 +510,15 @@ export default function App() {
 
   async function loadUsers(tokenOverride?: string) {
     try {
+      const activeToken = tokenOverride || authTokenRef.current || authToken;
+      if (!activeToken) {
+        return;
+      }
+
       const response = await fetch(`${apiBaseUrl}/api/users`, {
         headers: {
           "Bypass-Tunnel-Reminder": "true",
-          Authorization: `Bearer ${tokenOverride || authTokenRef.current || authToken}`,
+          Authorization: `Bearer ${activeToken}`,
         },
       });
       const data = await response.json();
@@ -517,6 +541,34 @@ export default function App() {
       setRegisteredDevices(data.devices);
     } catch (error) {
       setBackendError(error instanceof Error ? error.message : "Unable to load devices");
+    }
+  }
+
+  async function refreshLiveData(silent = false) {
+    if (!currentUser || !authTokenRef.current) {
+      return;
+    }
+
+    if (!silent) {
+      setIsRefreshing(true);
+    }
+
+    try {
+      setBackendError("");
+      await loadUsers();
+      if (currentUser.role === "admin" && (showAdminPanel || showDevicesPanel)) {
+        await loadDevices();
+      }
+    } catch (error) {
+      if (!silent) {
+        const message = error instanceof Error ? error.message : "Unable to refresh live data";
+        setBackendError(message);
+        Alert.alert("Refresh failed", message);
+      }
+    } finally {
+      if (!silent) {
+        setIsRefreshing(false);
+      }
     }
   }
 
@@ -1493,6 +1545,17 @@ export default function App() {
           <Text style={styles.note}>{permissionSummary}</Text>
           <Text style={styles.note}>{pushSummary}</Text>
           <View style={styles.headerActions}>
+            <Pressable
+              onPress={handleRefresh}
+              style={({ pressed }) => [
+                styles.button,
+                styles.buttonOutline,
+                styles.smallButton,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.buttonOutlineText}>{isRefreshing ? "REFRESHING" : "REFRESH"}</Text>
+            </Pressable>
             {currentUser.role === "admin" ? (
               <>
                 <Pressable
