@@ -157,6 +157,7 @@ export default function App() {
   const [editPassword, setEditPassword] = useState("");
   const [timeTick, setTimeTick] = useState(() => Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
 
   useEffect(() => {
     void prepareNotifications();
@@ -293,6 +294,7 @@ export default function App() {
     setCurrentUser(null);
     setShowAdminPanel(false);
     setShowDevicesPanel(false);
+    setShowHeaderMenu(false);
     setSelectedScheduleUser(null);
     setSelectedManageUser(null);
     setAlertAllMode(false);
@@ -314,6 +316,16 @@ export default function App() {
 
   function handleRefresh() {
     void refreshLiveData();
+  }
+
+  function openAdminPanel() {
+    setShowHeaderMenu(false);
+    setShowAdminPanel(true);
+  }
+
+  function openDevicesPanel() {
+    setShowHeaderMenu(false);
+    setShowDevicesPanel(true);
   }
 
   async function handlePreviewAlert() {
@@ -1545,55 +1557,69 @@ export default function App() {
           </Text>
           <Text style={styles.note}>{permissionSummary}</Text>
           <Text style={styles.note}>{pushSummary}</Text>
-          <View style={styles.headerActions}>
+          <View style={styles.headerMenuWrap}>
             <Pressable
-              onPress={handleRefresh}
+              onPress={() => setShowHeaderMenu((current) => !current)}
               style={({ pressed }) => [
                 styles.button,
                 styles.buttonOutline,
                 styles.smallButton,
+                styles.headerMenuButton,
                 pressed && styles.buttonPressed,
               ]}
             >
-              <Text style={styles.buttonOutlineText}>{isRefreshing ? "REFRESHING" : "REFRESH"}</Text>
+              <Text style={styles.buttonOutlineText}>{showHeaderMenu ? "CLOSE MENU" : "MENU"}</Text>
             </Pressable>
-            {currentUser.role === "admin" ? (
-              <>
+            {showHeaderMenu ? (
+              <View style={styles.headerDropdown}>
                 <Pressable
-                  onPress={() => setShowAdminPanel(true)}
+                  onPress={() => {
+                    setShowHeaderMenu(false);
+                    handleRefresh();
+                  }}
                   style={({ pressed }) => [
-                    styles.button,
-                    styles.buttonOutline,
-                    styles.smallButton,
+                    styles.headerDropdownItem,
                     pressed && styles.buttonPressed,
                   ]}
                 >
-                  <Text style={styles.buttonOutlineText}>ADMIN</Text>
+                  <Text style={styles.buttonOutlineText}>{isRefreshing ? "REFRESHING" : "REFRESH"}</Text>
                 </Pressable>
+                {currentUser.role === "admin" ? (
+                  <>
+                    <Pressable
+                      onPress={openAdminPanel}
+                      style={({ pressed }) => [
+                        styles.headerDropdownItem,
+                        pressed && styles.buttonPressed,
+                      ]}
+                    >
+                      <Text style={styles.buttonOutlineText}>ADMIN</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={openDevicesPanel}
+                      style={({ pressed }) => [
+                        styles.headerDropdownItem,
+                        pressed && styles.buttonPressed,
+                      ]}
+                    >
+                      <Text style={styles.buttonOutlineText}>DEVICES</Text>
+                    </Pressable>
+                  </>
+                ) : null}
                 <Pressable
-                  onPress={() => setShowDevicesPanel(true)}
+                  onPress={() => {
+                    setShowHeaderMenu(false);
+                    handleLogout();
+                  }}
                   style={({ pressed }) => [
-                    styles.button,
-                    styles.buttonOutline,
-                    styles.smallButton,
+                    styles.headerDropdownItem,
                     pressed && styles.buttonPressed,
                   ]}
                 >
-                  <Text style={styles.buttonOutlineText}>DEVICES</Text>
+                  <Text style={styles.buttonOutlineText}>LOGOUT</Text>
                 </Pressable>
-              </>
+              </View>
             ) : null}
-            <Pressable
-              onPress={handleLogout}
-              style={({ pressed }) => [
-                styles.button,
-                styles.buttonOutline,
-                styles.smallButton,
-                pressed && styles.buttonPressed,
-              ]}
-            >
-              <Text style={styles.buttonOutlineText}>Logout</Text>
-            </Pressable>
           </View>
         </View>
 
@@ -1784,6 +1810,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     alignSelf: "flex-start",
+  },
+  headerMenuWrap: {
+    alignSelf: "flex-start",
+    gap: 8,
+  },
+  headerMenuButton: {
+    minWidth: 150,
+    justifyContent: "center",
+  },
+  headerDropdown: {
+    minWidth: 180,
+    borderWidth: 1,
+    borderColor: palette.green,
+    backgroundColor: palette.panelRaised,
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  headerDropdownItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#154f1e",
+    backgroundColor: "#081408",
   },
   headerActionsCompact: {
     flexDirection: "row",
