@@ -31,6 +31,67 @@ const WEEK_DAYS: Array<{ key: ScheduleDayKey; label: string }> = [
   { key: "sunday", label: "Sunday" },
 ];
 
+const DEFAULT_USER_TIMEZONE = "Europe/London";
+const TIMEZONE_ALIASES: Record<string, string> = {
+  UTC: "UTC",
+  GMT: "Europe/London",
+  BST: "Europe/London",
+  EST: "America/New_York",
+  EDT: "America/New_York",
+  CST: "America/Chicago",
+  CDT: "America/Chicago",
+  MST: "America/Denver",
+  MDT: "America/Denver",
+  PST: "America/Los_Angeles",
+  PDT: "America/Los_Angeles",
+  CET: "Europe/Paris",
+  CEST: "Europe/Paris",
+  AEST: "Australia/Sydney",
+  AEDT: "Australia/Sydney",
+};
+
+function resolveTimezoneIdentifier(input?: string) {
+  const trimmed = String(input || "").trim();
+  if (!trimmed) {
+    return DEFAULT_USER_TIMEZONE;
+  }
+
+  const alias = TIMEZONE_ALIASES[trimmed.toUpperCase()];
+  if (alias) {
+    return alias;
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone: trimmed }).format(new Date());
+    return trimmed;
+  } catch {
+    return DEFAULT_USER_TIMEZONE;
+  }
+}
+
+function getTimezoneContext(input?: string, date = new Date()) {
+  const timeZone = resolveTimezoneIdentifier(input);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    weekday: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+
+  const getPart = (type: string) => parts.find((part) => part.type === type)?.value || "";
+  const weekday = getPart("weekday").toLowerCase() as ScheduleDayKey;
+  const hour = Number(getPart("hour") || "0");
+  const minute = Number(getPart("minute") || "0");
+
+  return {
+    timeZone,
+    weekday,
+    currentMinutes: hour * 60 + minute,
+    label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+  };
+}
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
@@ -91,6 +152,7 @@ export default function App() {
   const [editUsername, setEditUsername] = useState("");
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editPassword, setEditPassword] = useState("");
+  const [timeTick, setTimeTick] = useState(() => Date.now());
 
   useEffect(() => {
     void prepareNotifications();
@@ -115,6 +177,14 @@ export default function App() {
       void loadDevices();
     }
   }, [showAdminPanel, showDevicesPanel, currentUser]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeTick(Date.now());
+    }, 30000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!activeAlarm) {
@@ -554,16 +624,12 @@ export default function App() {
       return false;
     }
 
-    const now = new Date();
-    const weekday = now
-      .toLocaleDateString("en-GB", { weekday: "long" })
-      .toLowerCase() as ScheduleDayKey;
-    const day = schedule.days[weekday];
+    const context = getTimezoneContext(schedule.timezone);
+    const day = schedule.days[context.weekday];
     if (!day || !day.enabled) {
       return false;
     }
 
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const startMinutes = parseTimeToMinutes(day.startTime);
     const endMinutes = parseTimeToMinutes(day.endTime);
 
@@ -572,10 +638,14 @@ export default function App() {
     }
 
     if (startMinutes < endMinutes) {
-      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+      return context.currentMinutes >= startMinutes && context.currentMinutes < endMinutes;
     }
 
-    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+    return context.currentMinutes >= startMinutes || context.currentMinutes < endMinutes;
+  }
+
+  function getUserTimeLabel(user: AppUser) {
+    return getTimezoneContext(user.onCallSchedule?.timezone, new Date(timeTick)).label;
   }
 
   function getScheduleDraft(user: AppUser) {
@@ -609,6 +679,18 @@ export default function App() {
             ...patch,
           },
         },
+      },
+    }));
+  }
+
+  function updateScheduleDraftTimezone(userId: string, timezone: string) {
+    const baseUser = users.find((user) => user.id === userId) || seedUsers[0];
+    setScheduleDrafts((current) => ({
+      ...current,
+      [userId]: {
+        ...getScheduleDraft(baseUser),
+        ...current[userId],
+        timezone,
       },
     }));
   }
@@ -910,6 +992,21 @@ export default function App() {
             contentContainerStyle={styles.scheduleModalContent}
             showsVerticalScrollIndicator
           >
+            <View style={styles.scheduleDayCard}>
+              <Text style={styles.responderName}>Timezone</Text>
+              <Text style={styles.responderMeta}>
+                Use an IANA zone like `America/New_York` or a common label like `EST`.
+              </Text>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={(value) => updateScheduleDraftTimezone(selectedScheduleUser.id, value)}
+                placeholder="America/New_York"
+                placeholderTextColor={palette.muted}
+                style={styles.input}
+                value={getScheduleDraft(selectedScheduleUser).timezone}
+              />
+            </View>
             {WEEK_DAYS.map((day) => {
               const draft = getScheduleDraft(selectedScheduleUser).days[day.key];
               return (
@@ -1512,6 +1609,14 @@ export default function App() {
                 ]}
               >
                 <Text style={styles.userTileName}>{user.displayName}</Text>
+                <Text
+                  style={[
+                    styles.userTileMeta,
+                    user.role !== "admin" && !isUserOnCall(user) && styles.userTileDisabled,
+                  ]}
+                >
+                  current time {getUserTimeLabel(user)}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -1930,6 +2035,13 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 22,
     fontWeight: "700",
+    fontFamily: "Courier",
+    textAlign: "center",
+  },
+  userTileMeta: {
+    marginTop: 8,
+    color: palette.muted,
+    fontSize: 14,
     fontFamily: "Courier",
     textAlign: "center",
   },
