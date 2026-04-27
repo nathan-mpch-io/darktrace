@@ -56,6 +56,7 @@ export default function App() {
   const [users, setUsers] = useState<AppUser[]>(seedUsers);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showDevicesPanel, setShowDevicesPanel] = useState(false);
   const [selectedScheduleUser, setSelectedScheduleUser] = useState<AppUser | null>(null);
   const [selectedRecipient, setSelectedRecipient] = useState<AppUser | null>(null);
   const [pageMessage, setPageMessage] = useState("");
@@ -105,10 +106,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (showAdminPanel && currentUser?.role === "admin") {
+    if ((showAdminPanel || showDevicesPanel) && currentUser?.role === "admin") {
       void loadDevices();
     }
-  }, [showAdminPanel, currentUser]);
+  }, [showAdminPanel, showDevicesPanel, currentUser]);
 
   useEffect(() => {
     if (!activeAlarm) {
@@ -200,6 +201,7 @@ export default function App() {
   function handleLogout() {
     setCurrentUser(null);
     setShowAdminPanel(false);
+    setShowDevicesPanel(false);
     setSelectedScheduleUser(null);
     setAlertAllMode(false);
     setAuthToken("");
@@ -254,7 +256,7 @@ export default function App() {
   }
 
   function handleSelectRecipient(user: AppUser) {
-    if (!isUserOnCall(user)) {
+    if (user.role !== "admin" && !isUserOnCall(user)) {
       return;
     }
     setAlertAllMode(false);
@@ -268,7 +270,7 @@ export default function App() {
     setPageMessage("");
   }
 
-  const nonAdminUsers = users.filter((user) => user.role !== "admin");
+  const tileUsers = users;
   const allPagingUsers = users;
 
   async function apiRequest(path: string, options: RequestInit = {}, tokenOverride?: string) {
@@ -921,7 +923,6 @@ export default function App() {
               Create login credentials here, then share the username and password with each user.
             </Text>
             <Text style={styles.note}>Press `EDIT SCHEDULE` for each user.</Text>
-            <Text style={styles.note}>Use `REMOVE DEVICE` if the wrong phone is getting somebody else's alerts.</Text>
             {backendError ? <Text style={styles.errorText}>{backendError}</Text> : null}
 
             <View style={styles.formGroup}>
@@ -1080,8 +1081,39 @@ export default function App() {
                 </View>
               ))}
             </View>
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (showDevicesPanel && currentUser.role === "admin") {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <View style={styles.fullScreenPanel}>
+          <View style={styles.adminHeader}>
+            <Text style={styles.sectionTitle}>Registered devices</Text>
+            <Pressable
+              onPress={() => setShowDevicesPanel(false)}
+              style={({ pressed }) => [
+                styles.button,
+                styles.buttonOutline,
+                styles.smallButton,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.buttonOutlineText}>Close</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            style={styles.fullScreenScroll}
+            contentContainerStyle={styles.adminScrollContent}
+            showsVerticalScrollIndicator
+          >
+            <Text style={styles.note}>Use `REMOVE DEVICE` if the wrong phone is getting somebody else's alerts.</Text>
+            {backendError ? <Text style={styles.errorText}>{backendError}</Text> : null}
             <View style={styles.userList}>
-              <Text style={styles.sectionTitle}>{">"} Registered devices</Text>
               {registeredDevices.map((device) => {
                 const linkedUser = users.find((user) => user.id === device.userId);
                 return (
@@ -1165,17 +1197,30 @@ export default function App() {
           <Text style={styles.note}>{pushSummary}</Text>
           <View style={styles.headerActions}>
             {currentUser.role === "admin" ? (
-              <Pressable
-                onPress={() => setShowAdminPanel(true)}
-                style={({ pressed }) => [
-                  styles.button,
-                  styles.buttonOutline,
-                  styles.smallButton,
-                  pressed && styles.buttonPressed,
-                ]}
-              >
-                <Text style={styles.buttonOutlineText}>ADMIN</Text>
-              </Pressable>
+              <>
+                <Pressable
+                  onPress={() => setShowAdminPanel(true)}
+                  style={({ pressed }) => [
+                    styles.button,
+                    styles.buttonOutline,
+                    styles.smallButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <Text style={styles.buttonOutlineText}>ADMIN</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setShowDevicesPanel(true)}
+                  style={({ pressed }) => [
+                    styles.button,
+                    styles.buttonOutline,
+                    styles.smallButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <Text style={styles.buttonOutlineText}>DEVICES</Text>
+                </Pressable>
+              </>
             ) : null}
             <Pressable
               onPress={handleLogout}
@@ -1252,16 +1297,16 @@ export default function App() {
             >
               <Text style={styles.alertAllButtonText}>ALERT ALL</Text>
             </Pressable>
-            {nonAdminUsers.map((user) => (
+            {tileUsers.map((user) => (
               <Pressable
                 key={user.id}
-                disabled={!isUserOnCall(user)}
+                disabled={user.role !== "admin" && !isUserOnCall(user)}
                 onPress={() => {
                   handleSelectRecipient(user);
                 }}
                 style={({ pressed }) => [
                   styles.userTile,
-                  !isUserOnCall(user) && styles.userTileDisabled,
+                  user.role !== "admin" && !isUserOnCall(user) && styles.userTileDisabled,
                   selectedRecipient?.id === user.id && styles.userTileActive,
                   pressed && styles.buttonPressed,
                 ]}
