@@ -11,6 +11,23 @@ const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || "0.0.0.0";
 const DEFAULT_TIMEZONE = "Europe/London";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const TIMEZONE_ALIASES = {
+  UTC: "UTC",
+  GMT: "Europe/London",
+  BST: "Europe/London",
+  EST: "America/New_York",
+  EDT: "America/New_York",
+  CST: "America/Chicago",
+  CDT: "America/Chicago",
+  MST: "America/Denver",
+  MDT: "America/Denver",
+  PST: "America/Los_Angeles",
+  PDT: "America/Los_Angeles",
+  CET: "Europe/Paris",
+  CEST: "Europe/Paris",
+  AEST: "Australia/Sydney",
+  AEDT: "Australia/Sydney",
+};
 const DAY_KEYS = [
   "monday",
   "tuesday",
@@ -285,20 +302,58 @@ function normalizeSchedule(input = {}) {
   };
 }
 
+function resolveTimezoneIdentifier(input) {
+  const trimmed = String(input || "").trim();
+  if (!trimmed) {
+    return DEFAULT_TIMEZONE;
+  }
+
+  const alias = TIMEZONE_ALIASES[trimmed.toUpperCase()];
+  if (alias) {
+    return alias;
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone: trimmed }).format(new Date());
+    return trimmed;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
+}
+
+function getTimezoneContext(input, date = new Date()) {
+  const timeZone = resolveTimezoneIdentifier(input);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    weekday: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+
+  const getPart = (type) => parts.find((part) => part.type === type)?.value || "";
+  const weekday = getPart("weekday").toLowerCase();
+  const hour = Number(getPart("hour") || "0");
+  const minute = Number(getPart("minute") || "0");
+
+  return {
+    timeZone,
+    weekday,
+    currentMinutes: hour * 60 + minute,
+  };
+}
+
 function isScheduleOnCallNow(schedule, date = new Date()) {
   if (!schedule?.days) {
     return false;
   }
 
-  const weekday = date
-    .toLocaleDateString("en-GB", { weekday: "long" })
-    .toLowerCase();
-  const day = schedule.days[weekday];
+  const context = getTimezoneContext(schedule.timezone, date);
+  const day = schedule.days[context.weekday];
   if (!day || !day.enabled) {
     return false;
   }
 
-  const currentMinutes = date.getHours() * 60 + date.getMinutes();
   const startMinutes = parseTimeToMinutes(day.startTime);
   const endMinutes = parseTimeToMinutes(day.endTime);
 
@@ -307,10 +362,10 @@ function isScheduleOnCallNow(schedule, date = new Date()) {
   }
 
   if (startMinutes < endMinutes) {
-    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    return context.currentMinutes >= startMinutes && context.currentMinutes < endMinutes;
   }
 
-  return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  return context.currentMinutes >= startMinutes || context.currentMinutes < endMinutes;
 }
 
 function parseTimeToMinutes(value) {
