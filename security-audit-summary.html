@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DarkTrace Backend Security Audit Summary</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #111;
+        margin: 48px;
+        line-height: 1.45;
+      }
+      h1, h2 {
+        margin: 0 0 12px;
+      }
+      h1 {
+        font-size: 28px;
+      }
+      h2 {
+        font-size: 18px;
+        margin-top: 28px;
+      }
+      p {
+        margin: 8px 0 14px;
+      }
+      ul {
+        margin: 8px 0 18px 22px;
+      }
+      li {
+        margin: 8px 0;
+      }
+      .meta {
+        color: #444;
+        font-size: 13px;
+      }
+      .severity {
+        font-weight: 700;
+      }
+      .p1 {
+        color: #9b1c1c;
+      }
+      .p2 {
+        color: #92400e;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 90%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>DarkTrace Backend Security Audit Summary</h1>
+    <p class="meta">Generated for the DarkTrace backend/API review on April 27, 2026.</p>
+
+    <p>
+      This review focused on the current authentication, user management, device registration,
+      and paging API behavior in <code>server/index.mjs</code>. The highest-risk issues are
+      missing server-side authorization on paging, non-expiring bearer sessions, and lack of
+      login abuse protection.
+    </p>
+
+    <h2>Key Findings</h2>
+    <ul>
+      <li>
+        <span class="severity p1">P1:</span>
+        Any logged-in user can page any target user. <code>POST /api/pages/send</code> accepts
+        any <code>targetUserId</code> with no server-side authorization checks, so a non-admin
+        user can bypass the UI and send arbitrary alerts to any account.
+      </li>
+      <li>
+        <span class="severity p1">P1:</span>
+        Bearer sessions never expire and are stored indefinitely. A stolen token remains valid
+        until the backing session data is manually reset.
+      </li>
+      <li>
+        <span class="severity p1">P1:</span>
+        The login endpoint has no brute-force or abuse protection. There is no rate limiting,
+        backoff, lockout, or threshold-based alerting on <code>POST /api/login</code>.
+      </li>
+      <li>
+        <span class="severity p2">P2:</span>
+        Any authenticated user can enumerate all users and schedules via
+        <code>GET /api/users</code>, exposing usernames, roles, and full weekly on-call schedules.
+      </li>
+      <li>
+        <span class="severity p2">P2:</span>
+        Device tokens are exposed to admins and can be rebound by any authenticated user through
+        <code>/api/devices/register</code> if the token is known.
+      </li>
+    </ul>
+
+    <h2>Recommended Next Steps</h2>
+    <ul>
+      <li>Add server-side authorization rules for paging, including role and scope checks.</li>
+      <li>Introduce expiring sessions, logout/revocation, and periodic session cleanup.</li>
+      <li>Add rate limiting and brute-force protection for login and other sensitive endpoints.</li>
+      <li>Restrict user-directory data returned to ordinary users.</li>
+      <li>Mask push tokens in admin views and prevent token hijacking/reassignment abuse.</li>
+    </ul>
+
+    <h2>Overall Assessment</h2>
+    <p>
+      The backend is functional for testing, but it is not yet hardened for broader internet
+      exposure. Before treating this as production-ready, the authorization model, session
+      lifecycle, and abuse protections should be strengthened.
+    </p>
+  </body>
+</html>

@@ -203,7 +203,7 @@ export default function App() {
     void loginToBackend();
   }
 
-  function handleLogout() {
+  function resetLocalSession() {
     setCurrentUser(null);
     setShowAdminPanel(false);
     setShowDevicesPanel(false);
@@ -216,6 +216,10 @@ export default function App() {
     setLoginPassword("pass123");
     setBackendError("");
     setPushSummary("Remote push registration not started yet.");
+  }
+
+  function handleLogout() {
+    void logoutFromBackend();
   }
 
   function handleCreateUser() {
@@ -277,7 +281,8 @@ export default function App() {
     setPageMessage("");
   }
 
-  const tileUsers = users;
+  const tileUsers =
+    currentUser?.role === "admin" ? users : users.filter((user) => user.role === "admin");
   const allPagingUsers = users;
 
   async function apiRequest(path: string, options: RequestInit = {}, tokenOverride?: string) {
@@ -345,6 +350,18 @@ export default function App() {
       await registerDeviceForPush(data.token, appUser);
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Unable to login");
+    }
+  }
+
+  async function logoutFromBackend() {
+    try {
+      await apiRequest("/api/logout", {
+        method: "POST",
+      });
+    } catch {
+      // Best effort; local session still needs clearing.
+    } finally {
+      resetLocalSession();
     }
   }
 
@@ -511,22 +528,28 @@ export default function App() {
 
   function mapApiUserToAppUser(user: {
     id: string;
-    username: string;
+    username?: string;
     displayName: string;
     role: "admin" | "user" | "responder";
     onCallSchedule?: OnCallSchedule;
+    isOnCallNow?: boolean;
   }): AppUser {
     return {
       id: user.id,
-      username: user.username,
+      username: user.username || "",
       password: "",
       displayName: user.displayName,
       role: user.role === "admin" ? "admin" : "user",
       onCallSchedule: user.onCallSchedule,
+      isOnCallNow: user.isOnCallNow,
     };
   }
 
   function isUserOnCall(user: AppUser) {
+    if (typeof user.isOnCallNow === "boolean") {
+      return user.isOnCallNow;
+    }
+
     const schedule = user.onCallSchedule;
     if (!schedule?.days) {
       return false;
@@ -1464,17 +1487,19 @@ export default function App() {
             </View>
           ) : null}
           <View style={styles.tileGrid}>
-            <Pressable
-              onPress={handleSelectAlertAll}
-              style={({ pressed }) => [
-                styles.userTile,
-                styles.alertAllTile,
-                alertAllMode && styles.alertAllTileActive,
-                pressed && styles.buttonPressed,
-              ]}
-            >
-              <Text style={styles.alertAllButtonText}>ALERT ALL</Text>
-            </Pressable>
+            {currentUser.role === "admin" ? (
+              <Pressable
+                onPress={handleSelectAlertAll}
+                style={({ pressed }) => [
+                  styles.userTile,
+                  styles.alertAllTile,
+                  alertAllMode && styles.alertAllTileActive,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <Text style={styles.alertAllButtonText}>ALERT ALL</Text>
+              </Pressable>
+            ) : null}
             {tileUsers.map((user) => (
               <Pressable
                 key={user.id}

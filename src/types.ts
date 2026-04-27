@@ -51,6 +51,7 @@ export type AppUser = {
   displayName: string;
   role: AppUserRole;
   onCallSchedule?: OnCallSchedule;
+  isOnCallNow?: boolean;
 };
 
 export type RegisteredDevice = {

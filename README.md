@@ -90,3 +90,37 @@ npm run android
 - Add escalation timers on the server
 - Prepare Apple Critical Alerts entitlement request
 # darktrace
+## Installable Builds
+
+DarkTrace can be shared as proper installable builds through EAS Build instead of relying on Expo Go QR sessions.
+
+### Android internal build
+
+```bash
+npx eas-cli@latest build --platform android --profile preview
+```
+
+This produces an installable Android build you can share with testers.
+
+### iPhone internal build
+
+```bash
+npx eas-cli@latest device:create
+npx eas-cli@latest build --platform ios --profile preview
+```
+
+For iPhone internal distribution, Expo uses ad hoc provisioning, so each tester device must be registered first. After the iPhone device is registered, build again and share the install URL.
+
+### iPhone simulator build
+
+```bash
+npx eas-cli@latest build --platform ios --profile preview-ios-simulator
+```
+
+This is only for the simulator and is not a real push notification target.
+
+### Notes
+
+- Internal distribution build URLs can be shared directly with testers.
+- Android Expo Go is not a reliable remote-push target on SDK 54, so Android testers should use an installable build instead.
+- iPhone internal distribution requires an Apple Developer account and registered tester devices.

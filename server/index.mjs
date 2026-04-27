@@ -10,6 +10,7 @@ const dbPath = join(dataDir, "db.json");
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || "0.0.0.0";
 const DEFAULT_TIMEZONE = "Europe/London";
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const DAY_KEYS = [
   "monday",
   "tuesday",
@@ -59,6 +60,10 @@ function verifyPassword(password, stored) {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function plusMsIso(ms) {
+  return new Date(Date.now() + ms).toISOString();
 }
 
 function nextId(prefix) {
@@ -123,6 +128,19 @@ function readDb() {
   ensureDb();
   const db = JSON.parse(readFileSync(dbPath, "utf8"));
   let changed = false;
+
+  const now = Date.now();
+  const originalSessionCount = Array.isArray(db.sessions) ? db.sessions.length : 0;
+  db.sessions = (db.sessions || []).filter((session) => {
+    if (!session?.expiresAt) {
+      return false;
+    }
+
+    return Date.parse(session.expiresAt) > now;
+  });
+  if (db.sessions.length !== originalSessionCount) {
+    changed = true;
+  }
 
   db.users = db.users.map((user) => {
     let nextUser = user;
@@ -191,6 +209,20 @@ function sanitizeUser(user) {
   };
 }
 
+function sanitizeUserForViewer(user, viewer) {
+  if (viewer.role === "admin") {
+    return sanitizeUser(user);
+  }
+
+  return {
+    id: user.id,
+    displayName: user.displayName,
+    role: user.role,
+    createdAt: user.createdAt,
+    isOnCallNow: user.role === "admin" ? true : isScheduleOnCallNow(user.onCallSchedule),
+  };
+}
+
 function sanitizeDevice(device) {
   return {
     id: device.id,
@@ -253,6 +285,40 @@ function normalizeSchedule(input = {}) {
   };
 }
 
+function isScheduleOnCallNow(schedule, date = new Date()) {
+  if (!schedule?.days) {
+    return false;
+  }
+
+  const weekday = date
+    .toLocaleDateString("en-GB", { weekday: "long" })
+    .toLowerCase();
+  const day = schedule.days[weekday];
+  if (!day || !day.enabled) {
+    return false;
+  }
+
+  const currentMinutes = date.getHours() * 60 + date.getMinutes();
+  const startMinutes = parseTimeToMinutes(day.startTime);
+  const endMinutes = parseTimeToMinutes(day.endTime);
+
+  if (startMinutes === endMinutes) {
+    return true;
+  }
+
+  if (startMinutes < endMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  }
+
+  return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+}
+
+function parseTimeToMinutes(value) {
+  const normalized = normalizeTimeString(value, "00:00");
+  const [hours, minutes] = normalized.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
 function getBearerToken(req) {
   const header = req.headers.authorization || "";
   if (!header.startsWith("Bearer ")) {
@@ -269,6 +335,10 @@ function getSessionUser(db, req) {
 
   const session = db.sessions.find((entry) => entry.token === token);
   if (!session) {
+    return null;
+  }
+
+  if (!session.expiresAt || Date.parse(session.expiresAt) <= Date.now()) {
     return null;
   }
 
@@ -530,6 +600,7 @@ const server = createServer(async (req, res) => {
         token: randomBytes(24).toString("hex"),
         userId: user.id,
         createdAt: nowIso(),
+        expiresAt: plusMsIso(SESSION_TTL_MS),
       };
 
       db.sessions.push(session);
@@ -553,6 +624,23 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/logout") {
+      const token = getBearerToken(req);
+      if (!token) {
+        sendJson(res, 200, { ok: true });
+        return;
+      }
+
+      const originalLength = db.sessions.length;
+      db.sessions = db.sessions.filter((entry) => entry.token !== token);
+      if (db.sessions.length !== originalLength) {
+        writeDb(db);
+      }
+
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/users") {
       const auth = requireAuth(db, req, res);
       if (!auth) {
@@ -560,7 +648,7 @@ const server = createServer(async (req, res) => {
       }
 
       sendJson(res, 200, {
-        users: db.users.map(sanitizeUser),
+        users: db.users.map((user) => sanitizeUserForViewer(user, auth.user)),
       });
       return;
     }
@@ -816,6 +904,11 @@ const server = createServer(async (req, res) => {
       const targetUser = db.users.find((entry) => entry.id === targetUserId);
       if (!targetUser) {
         sendJson(res, 404, { error: "Target user not found" });
+        return;
+      }
+
+      if (auth.user.role !== "admin" && targetUser.role !== "admin") {
+        sendJson(res, 403, { error: "Only admins can page non-admin users" });
         return;
       }
 

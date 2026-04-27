@@ -1,0 +1,43 @@
+DarkTrace Backend Security Audit Summary
+Generated on April 27, 2026
+
+Overview
+This review focused on the current authentication, user management, device
+registration, and paging API behavior in server/index.mjs. The highest-risk
+issues are missing server-side authorization on paging, non-expiring bearer
+sessions, and lack of login abuse protection.
+
+Key Findings
+1. P1 - Any logged-in user can page any target user.
+   POST /api/pages/send accepts any targetUserId with no server-side
+   authorization checks, so a non-admin user can bypass the UI and send
+   arbitrary alerts to any account.
+
+2. P1 - Bearer sessions never expire and are stored indefinitely.
+   A stolen token remains valid until the backing session data is manually
+   reset.
+
+3. P1 - The login endpoint has no brute-force or abuse protection.
+   There is no rate limiting, backoff, lockout, or threshold-based alerting
+   on POST /api/login.
+
+4. P2 - Any authenticated user can enumerate all users and schedules.
+   GET /api/users exposes usernames, roles, and full weekly on-call schedules
+   to any logged-in account.
+
+5. P2 - Device tokens are exposed to admins and can be rebound by any
+   authenticated user if the token is known through /api/devices/register.
+
+Recommended Next Steps
+- Add server-side authorization rules for paging, including role and scope
+  checks.
+- Introduce expiring sessions, logout/revocation, and periodic session cleanup.
+- Add rate limiting and brute-force protection for login and other sensitive
+  endpoints.
+- Restrict user-directory data returned to ordinary users.
+- Mask push tokens in admin views and prevent token reassignment abuse.
+
+Overall Assessment
+The backend is functional for testing, but it is not yet hardened for broader
+internet exposure. Before treating this as production-ready, the authorization
+model, session lifecycle, and abuse protections should be strengthened.
