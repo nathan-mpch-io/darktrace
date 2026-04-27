@@ -684,6 +684,37 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    const deleteUserMatch =
+      req.method === "POST" && url.pathname.match(/^\/api\/users\/([^/]+)\/delete$/);
+
+    if (deleteUserMatch) {
+      const auth = requireAdmin(db, req, res);
+      if (!auth) {
+        return;
+      }
+
+      const userId = deleteUserMatch[1];
+      if (auth.user.id === userId) {
+        sendJson(res, 400, { error: "You cannot delete the account you are currently using" });
+        return;
+      }
+
+      const userIndex = db.users.findIndex((entry) => entry.id === userId);
+      if (userIndex === -1) {
+        sendJson(res, 404, { error: "User not found" });
+        return;
+      }
+
+      const [removedUser] = db.users.splice(userIndex, 1);
+      db.devices = db.devices.filter((entry) => entry.userId !== userId);
+      db.sessions = db.sessions.filter((entry) => entry.userId !== userId);
+      logAudit(db, "users.delete", auth.user.id, { targetUserId: userId });
+      writeDb(db);
+
+      sendJson(res, 200, { user: sanitizeUser(removedUser) });
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/devices/register") {
       const auth = requireAuth(db, req, res);
       if (!auth) {

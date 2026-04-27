@@ -58,6 +58,7 @@ export default function App() {
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showDevicesPanel, setShowDevicesPanel] = useState(false);
   const [selectedScheduleUser, setSelectedScheduleUser] = useState<AppUser | null>(null);
+  const [selectedManageUser, setSelectedManageUser] = useState<AppUser | null>(null);
   const [selectedRecipient, setSelectedRecipient] = useState<AppUser | null>(null);
   const [pageMessage, setPageMessage] = useState("");
   const [alertAllMode, setAlertAllMode] = useState(false);
@@ -86,6 +87,9 @@ export default function App() {
   const [permissionSummary, setPermissionSummary] = useState("Checking notification access...");
   const [pushSummary, setPushSummary] = useState("Remote push registration not started yet.");
   const [registeredDevices, setRegisteredDevices] = useState<RegisteredDevice[]>([]);
+  const [editUsername, setEditUsername] = useState("");
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editPassword, setEditPassword] = useState("");
 
   useEffect(() => {
     void prepareNotifications();
@@ -203,6 +207,7 @@ export default function App() {
     setShowAdminPanel(false);
     setShowDevicesPanel(false);
     setSelectedScheduleUser(null);
+    setSelectedManageUser(null);
     setAlertAllMode(false);
     setAuthToken("");
       setLoginUsername("admin");
@@ -627,6 +632,70 @@ export default function App() {
     }
   }
 
+  function openManageUser(user: AppUser) {
+    setSelectedManageUser(user);
+    setEditDisplayName(user.displayName);
+    setEditUsername(user.username);
+    setEditPassword("");
+  }
+
+  async function saveManagedUser(user: AppUser) {
+    const username = editUsername.trim();
+    const displayName = editDisplayName.trim();
+
+    if (!username || !displayName) {
+      Alert.alert("Missing details", "Display name and username are required.");
+      return;
+    }
+
+    try {
+      setBackendError("");
+      await apiRequest(`/api/users/${user.id}`, {
+        method: "POST",
+        body: JSON.stringify({
+          username,
+          displayName,
+          ...(editPassword.trim() ? { password: editPassword.trim() } : {}),
+        }),
+      });
+      await loadUsers();
+      Alert.alert("User updated", `${displayName}'s details have been saved.`);
+      setSelectedManageUser(null);
+      setEditPassword("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to update user";
+      setBackendError(message);
+      Alert.alert("User update failed", message);
+    }
+  }
+
+  async function deleteUser(user: AppUser) {
+    const confirmed = await confirmAction(
+      "Delete user",
+      `Delete ${user.displayName}? This will also remove their registered devices.`,
+      "Delete user",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setBackendError("");
+      await apiRequest(`/api/users/${user.id}/delete`, {
+        method: "POST",
+      });
+      await loadUsers();
+      await loadDevices();
+      Alert.alert("User deleted", `${user.displayName} has been removed.`);
+      setSelectedManageUser(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to delete user";
+      setBackendError(message);
+      Alert.alert("Delete failed", message);
+    }
+  }
+
   async function deleteRegisteredDevice(device: RegisteredDevice) {
     try {
       setBackendError("");
@@ -895,6 +964,100 @@ export default function App() {
     );
   }
 
+  if (selectedManageUser && currentUser.role === "admin") {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <View style={styles.fullScreenPanel}>
+          <View style={styles.adminHeader}>
+            <Text style={styles.sectionTitle}>Manage {selectedManageUser.displayName}</Text>
+            <Pressable
+              onPress={() => setSelectedManageUser(null)}
+              style={({ pressed }) => [
+                styles.button,
+                styles.buttonOutline,
+                styles.smallButton,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.buttonOutlineText}>Close</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            style={styles.fullScreenScroll}
+            contentContainerStyle={styles.adminScrollContent}
+            showsVerticalScrollIndicator
+          >
+            {backendError ? <Text style={styles.errorText}>{backendError}</Text> : null}
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>display_name</Text>
+              <TextInput
+                autoCorrect={false}
+                onChangeText={setEditDisplayName}
+                placeholder="Display name"
+                placeholderTextColor={palette.muted}
+                style={styles.input}
+                value={editDisplayName}
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>username</Text>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={setEditUsername}
+                placeholder="username"
+                placeholderTextColor={palette.muted}
+                style={styles.input}
+                value={editUsername}
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>new_password</Text>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={setEditPassword}
+                placeholder="Leave blank to keep existing password"
+                placeholderTextColor={palette.muted}
+                style={styles.input}
+                value={editPassword}
+              />
+            </View>
+            <View style={styles.composeActions}>
+              <Pressable
+                onPress={() => {
+                  void saveManagedUser(selectedManageUser);
+                }}
+                style={({ pressed }) => [
+                  styles.button,
+                  styles.buttonSolid,
+                  styles.smallButton,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <Text style={styles.buttonSolidText}>SAVE USER</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  void deleteUser(selectedManageUser);
+                }}
+                style={({ pressed }) => [
+                  styles.button,
+                  styles.buttonOutline,
+                  styles.smallButton,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <Text style={styles.buttonOutlineText}>DELETE USER</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (showAdminPanel && currentUser.role === "admin") {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -1058,6 +1221,17 @@ export default function App() {
                         </Text>
                       </Pressable>
                     </View>
+                    <Pressable
+                      onPress={() => openManageUser(user)}
+                      style={({ pressed }) => [
+                        styles.button,
+                        styles.buttonOutline,
+                        styles.smallButton,
+                        pressed && styles.buttonPressed,
+                      ]}
+                    >
+                      <Text style={styles.buttonOutlineText}>MANAGE USER</Text>
+                    </Pressable>
                     {user.role !== "admin" ? (
                       <View style={styles.scheduleEditor}>
                         <Text style={styles.responderMeta}>
