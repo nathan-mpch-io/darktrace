@@ -907,11 +907,6 @@ const server = createServer(async (req, res) => {
         return;
       }
 
-      if (auth.user.role !== "admin" && targetUser.role !== "admin") {
-        sendJson(res, 403, { error: "Only admins can page non-admin users" });
-        return;
-      }
-
       const page = {
         id: nextId("page"),
         createdByUserId: auth.user.id,

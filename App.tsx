@@ -281,8 +281,7 @@ export default function App() {
     setPageMessage("");
   }
 
-  const tileUsers =
-    currentUser?.role === "admin" ? users : users.filter((user) => user.role === "admin");
+  const tileUsers = users;
   const allPagingUsers = users;
 
   async function apiRequest(path: string, options: RequestInit = {}, tokenOverride?: string) {
@@ -1487,19 +1486,17 @@ export default function App() {
             </View>
           ) : null}
           <View style={styles.tileGrid}>
-            {currentUser.role === "admin" ? (
-              <Pressable
-                onPress={handleSelectAlertAll}
-                style={({ pressed }) => [
-                  styles.userTile,
-                  styles.alertAllTile,
-                  alertAllMode && styles.alertAllTileActive,
-                  pressed && styles.buttonPressed,
-                ]}
-              >
-                <Text style={styles.alertAllButtonText}>ALERT ALL</Text>
-              </Pressable>
-            ) : null}
+            <Pressable
+              onPress={handleSelectAlertAll}
+              style={({ pressed }) => [
+                styles.userTile,
+                styles.alertAllTile,
+                alertAllMode && styles.alertAllTileActive,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.alertAllButtonText}>ALERT ALL</Text>
+            </Pressable>
             {tileUsers.map((user) => (
               <Pressable
                 key={user.id}
