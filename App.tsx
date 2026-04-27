@@ -90,6 +90,7 @@ function getTimezoneContext(input?: string, date = new Date()) {
     timeZone,
     weekday,
     currentMinutes: hour * 60 + minute,
+    time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
     label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${zoneLabel}`,
   };
 }
@@ -697,7 +698,7 @@ export default function App() {
   }
 
   function getUserTimeLabel(user: AppUser) {
-    return getTimezoneContext(user.onCallSchedule?.timezone, new Date(timeTick)).label;
+    return getTimezoneContext(user.onCallSchedule?.timezone, new Date(timeTick)).time;
   }
 
   function getScheduleDraft(user: AppUser) {

@@ -5,8 +5,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const dataDir = join(__dirname, "data");
-const dbPath = join(dataDir, "db.json");
+const configuredDataDir = process.env.DARKTRACE_DATA_DIR;
+const configuredDbPath = process.env.DARKTRACE_DB_PATH;
+const dataDir = configuredDataDir
+  ? configuredDataDir
+  : join(__dirname, "data");
+const dbPath = configuredDbPath
+  ? configuredDbPath
+  : join(dataDir, "db.json");
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || "0.0.0.0";
 const DEFAULT_TIMEZONE = "Europe/London";

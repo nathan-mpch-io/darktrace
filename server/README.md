@@ -28,6 +28,14 @@ This repo now includes [render.yaml](/Users/nathantucker/Desktop/Pager%20Duty%20
 - The backend already listens on `process.env.PORT`, so no code change is needed.
 - `server/data/db.json` is file-based and not durable on most cloud platforms. It is acceptable for short-lived testing, but accounts and pages can reset after redeploy/restart.
 - For production, move storage to a real database.
+- If you stay file-based, the backend also supports:
+  - `DARKTRACE_DATA_DIR`
+  - `DARKTRACE_DB_PATH`
+  so you can point the data file at a persistent mount.
+- On Render Free web services, local filesystem changes are ephemeral and can be lost on restart, redeploy, or spin-down. Deleted users can reappear unless you move to durable storage.
+- On Render, the durable options are:
+  - upgrade to a paid web service and attach a persistent disk, then set `DARKTRACE_DATA_DIR` to that mount path
+  - or move users/devices/pages into a real database such as Postgres
 
 ## Storage
 
