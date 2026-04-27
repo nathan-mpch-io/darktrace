@@ -222,6 +222,7 @@ function sanitizeUser(user) {
     displayName: user.displayName,
     role: user.role,
     onCallSchedule: user.onCallSchedule,
+    isOnCallNow: user.role === "admin" ? true : isScheduleOnCallNow(user.onCallSchedule),
     createdAt: user.createdAt,
   };
 }
