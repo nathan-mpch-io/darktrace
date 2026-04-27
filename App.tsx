@@ -42,6 +42,7 @@ Notifications.setNotificationHandler({
 
 export default function App() {
   const alarmSoundRef = useRef<Audio.Sound | null>(null);
+  const authTokenRef = useRef("");
   const defaultApiUrl =
     (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) || "http://127.0.0.1:4000";
   const defaultProjectId =
@@ -210,10 +211,11 @@ export default function App() {
     setSelectedManageUser(null);
     setAlertAllMode(false);
     setAuthToken("");
-      setLoginUsername("admin");
-      setLoginPassword("pass123");
-      setBackendError("");
-      setPushSummary("Remote push registration not started yet.");
+    authTokenRef.current = "";
+    setLoginUsername("admin");
+    setLoginPassword("pass123");
+    setBackendError("");
+    setPushSummary("Remote push registration not started yet.");
   }
 
   function handleCreateUser() {
@@ -279,12 +281,13 @@ export default function App() {
   const allPagingUsers = users;
 
   async function apiRequest(path: string, options: RequestInit = {}, tokenOverride?: string) {
+    const activeToken = tokenOverride || authTokenRef.current || authToken;
     const response = await fetch(`${apiBaseUrl}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
         "Bypass-Tunnel-Reminder": "true",
-        ...(tokenOverride || authToken ? { Authorization: `Bearer ${tokenOverride || authToken}` } : {}),
+        ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {}),
         ...((options.headers as Record<string, string> | undefined) || {}),
       },
     });
@@ -336,6 +339,7 @@ export default function App() {
       } satisfies AppUser;
 
       setAuthToken(data.token);
+      authTokenRef.current = data.token;
       setCurrentUser(appUser);
       await loadUsers(data.token);
       await registerDeviceForPush(data.token, appUser);
@@ -404,7 +408,7 @@ export default function App() {
       const response = await fetch(`${apiBaseUrl}/api/users`, {
         headers: {
           "Bypass-Tunnel-Reminder": "true",
-          Authorization: `Bearer ${tokenOverride || authToken}`,
+          Authorization: `Bearer ${tokenOverride || authTokenRef.current || authToken}`,
         },
       });
       const data = await response.json();
